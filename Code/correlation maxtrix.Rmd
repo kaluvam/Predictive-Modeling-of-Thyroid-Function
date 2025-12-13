@@ -1,0 +1,65 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+# ================== Packages ==================
+library(readxl)
+library(tidyverse)
+library(janitor)
+library(Hmisc)
+library(ggcorrplot)
+
+# ================== Load & Clean ==================
+file_path <- "C:/Users/mouni/OneDrive - clarkson.edu/DATA MINING/project/dataset.xlsx"
+df <- read_excel(file_path) |> clean_names()
+
+# Choose numeric columns
+num_cols <- c("age","waist","height","bmi",
+              "triiodothyronine","thyroxine","thyroid_stimulating_hormone")
+num_cols <- intersect(num_cols, names(df))
+
+num_df <- df |>
+  select(all_of(num_cols)) |>
+  mutate(across(everything(), as.numeric))
+
+# ================== Compute Correlations & P-values ==================
+rc <- rcorr(as.matrix(num_df), type = "pearson")
+
+r_mat <- round(rc$r, 2)
+p_mat <- round(rc$P, 4)
+
+# Replace NA with 0 for diagonal
+r_mat[is.na(r_mat)] <- 0
+p_mat[is.na(p_mat)] <- 0
+
+# ================== Combine Both Matrices ==================
+# Combine correlation and p-value into one label
+corr_text <- matrix(paste0(r_mat, "\n(p=", p_mat, ")"),
+                    nrow = nrow(r_mat), ncol = ncol(r_mat))
+rownames(corr_text) <- rownames(r_mat)
+colnames(corr_text) <- colnames(r_mat)
+
+# Convert to tidy data frame for ggplot
+corr_df <- as.data.frame(r_mat) |>
+  rownames_to_column("Var1") |>
+  pivot_longer(-Var1, names_to = "Var2", values_to = "Corr") |>
+  mutate(Pval = as.vector(p_mat),
+         Label = as.vector(corr_text))
+
+# ================== Plot ==================
+ggplot(corr_df, aes(x = Var2, y = Var1, fill = Corr)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = Label), size = 2, color = "black") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white",
+                       midpoint = 0, limit = c(-1,1), name = "Correlation (r)") +
+  coord_fixed() +
+  theme_minimal(base_size = 10) +
+  labs(title = "Correlation Matrix with Both r and p-values",
+       x = NULL, y = NULL) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```

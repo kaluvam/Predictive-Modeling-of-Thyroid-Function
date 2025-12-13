@@ -1,0 +1,60 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+# ---------- NORMALITY TEST FULL CODE ---------- #
+
+# Install & Load required packages
+if(!require(readxl)) install.packages("readxl")
+library(readxl)
+
+# Load your dataset (Change file path if needed)
+df <- read_excel("C:/Users/mouni/OneDrive - clarkson.edu/DATA MINING/project/dataset.xlsx")
+
+# Select only numeric columns
+num_columns <- sapply(df, is.numeric)
+numeric_data <- df[, num_columns]
+
+# ---------------- Shapiro-Wilk Test for each variable ---------------- #
+cat("========= SHAPIRO-WILK NORMALITY TEST =========\n")
+for (col in colnames(numeric_data)) {
+  cat("\nVariable:", col, "\n")
+  print(shapiro.test(numeric_data[[col]]))
+  cat("--------------------------------------\n")
+}
+
+# ---------------- Kolmogorov-Smirnov Test ---------------- #
+cat("\n========= KOLMOGOROV-SMIRNOV TEST =========\n")
+for (col in colnames(numeric_data)) {
+  cat("\nVariable:", col, "\n")
+  print(ks.test(numeric_data[[col]], "pnorm",
+                mean(numeric_data[[col]], na.rm = TRUE),
+                sd(numeric_data[[col]], na.rm = TRUE)))
+  cat("--------------------------------------\n")
+}
+
+# ---------------- QQ Plots for each numeric variable ---------------- #
+par(mfrow = c(2, 2))  # Adjust number of plots in one window
+for (col in colnames(numeric_data)) {
+  qqnorm(numeric_data[[col]], main = paste("QQ Plot -", col))
+  qqline(numeric_data[[col]], col = "red", lwd = 2)
+}
+par(mfrow = c(1,1))
+
+# ---------------- Histogram with density ---------------- #
+for (col in colnames(numeric_data)) {
+  hist(numeric_data[[col]], probability = TRUE,
+       col = "lightblue", main = paste("Histogram with Density -", col))
+  lines(density(numeric_data[[col]], na.rm = TRUE), col = "red", lwd = 2)
+}
+
+# ---------------- INTERPRETATION ---------------- #
+cat("\nNOTE:\n")
+cat("If p-value > 0.05 -> Data is NORMAL (Fail to reject H0)\n")
+cat("If p-value < 0.05 -> Data is NOT NORMAL (Reject H0)\n")
+cat("-----------------------------------------------\n")
+
+
+```

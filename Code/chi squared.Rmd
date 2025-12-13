@@ -1,0 +1,14 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(readxl)
+df <- read_excel("C:/Users/mouni/OneDrive - clarkson.edu/DATA MINING/project/dataset.xlsx")
+
+# Chi-square test
+chisq.test(table(df$Gender, df$TriiodothyronineRange))
+
+```
+

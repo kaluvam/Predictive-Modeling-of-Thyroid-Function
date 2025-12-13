@@ -1,0 +1,56 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+# ===================== Packages =====================
+library(readxl)
+library(tidyverse)
+library(janitor)
+
+# ===================== Load & Clean =====================
+file_path <- "C:/Users/mouni/OneDrive - clarkson.edu/DATA MINING/project/dataset.xlsx"
+df <- read_excel(file_path) |> clean_names()
+
+# Replace numeric gender codes with names
+df <- df |> 
+  mutate(
+    gender = recode(as.character(gender),
+                    "1" = "Male",
+                    "2" = "Female"),
+    gender = factor(gender, levels = c("Male", "Female")),
+    triiodothyronine_range = as.factor(triiodothyronine_range)
+  )
+
+# ===================== Compute Percentages =====================
+df_pct <- df |>
+  group_by(triiodothyronine_range, gender) |>
+  summarise(count = n(), .groups = "drop") |>
+  group_by(triiodothyronine_range) |>
+  mutate(percentage = 100 * count / sum(count))
+
+# ===================== Plot =====================
+ggplot(df_pct, aes(x = triiodothyronine_range,
+                   y = percentage,
+                   fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.7) +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)),
+            position = position_dodge(width = 0.7),
+            vjust = -0.5, size = 3, fontface = "bold") +
+  scale_fill_manual(values = c("Male" = "#fc8d62",  # orange-red
+                               "Female" = "#66c2a5"), # green-teal
+                    name = "Gender") +
+  labs(title = "Triiodothyronine Range vs Gender",
+       x = "Triiodothyronine Range",
+       y = "Percentage") +
+  theme_minimal(base_size = 16) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 15),
+    axis.title = element_text(face = "bold", size = 11),
+    axis.text = element_text(size = 11),
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 11)
+  )
+
+```
+

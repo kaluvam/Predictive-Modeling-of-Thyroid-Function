@@ -1,0 +1,91 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(janitor)
+library(Hmisc)
+library(ggcorrplot)
+
+file_path <-( "C:/Users/mouni/OneDrive - clarkson.edu/DATA MINING/project/dataset.xlsx" ) 
+df <- read_excel(file_path) |> clean_names()
+
+df <- df |>
+  mutate(gender = case_when(
+    gender %in% c(1, "1") ~ "Male",
+    gender %in% c(2, "2") ~ "Female",
+    TRUE ~ as.character(gender)
+  )) |>
+  mutate(gender = factor(gender, levels = c("Male","Female")))
+
+age_breaks  <- c(-Inf, 19, 29, 39, 49, 59, 69, 79, Inf)
+age_labels  <- c("<20","20–29","30–39","40–49","50–59","60–69","70–79","80+")
+df <- df |>
+  mutate(age_group = cut(age, breaks = age_breaks, labels = age_labels, right = TRUE))
+
+bmi_breaks <- c(-Inf, 18.5, 25, 30, Inf)
+bmi_labels <- c("Underweight","Normal","Overweight","Obese")
+df <- df |>
+  mutate(bmi_group = cut(bmi, breaks = bmi_breaks, labels = bmi_labels, right = FALSE))
+
+base_theme <- theme_minimal(base_size = 13) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "right")
+
+
+# 1) Age group vs T3 (colored by gender)
+p_age_t3 <- ggplot(df, aes(x = age_group, y = triiodothyronine, fill = gender)) +
+  geom_boxplot(position = position_dodge(0.8), outlier.alpha = 0.5) +
+  labs(title = "Boxplot of Triiodothyronine (T3) by Age Group (colored by Gender)",
+       x = "Age Group", y = "T3 (pg/mL)", fill = "Gender") +
+  base_theme
+print(p_age_t3)
+
+# 2) BMI group vs T3 (colored by gender)
+p_bmi_t3 <- ggplot(df, aes(x = bmi_group, y = triiodothyronine, fill = gender)) +
+  geom_boxplot(position = position_dodge(0.8), outlier.alpha = 0.5) +
+  labs(title = "Boxplot of Triiodothyronine (T3) by BMI Group (colored by Gender)",
+       x = "BMI Group", y = "T3 (pg/mL)", fill = "Gender") +
+  base_theme
+print(p_bmi_t3)
+
+# 3) Age group vs TSH (colored by gender)
+p_age_tsh <- ggplot(df, aes(x = age_group, y = thyroid_stimulating_hormone, fill = gender)) +
+  geom_boxplot(position = position_dodge(0.8), outlier.alpha = 0.5) +
+  labs(title = "Boxplot of TSH by Age Group (colored by Gender)",
+       x = "Age Group", y = "TSH (µIU/mL)", fill = "Gender") +
+  base_theme
+print(p_age_tsh)
+
+# 4) BMI group vs TSH (colored by gender)
+p_bmi_tsh <- ggplot(df, aes(x = bmi_group, y = thyroid_stimulating_hormone, fill = gender)) +
+  geom_boxplot(position = position_dodge(0.8), outlier.alpha = 0.5) +
+  labs(title = "Boxplot of TSH by BMI Group (colored by Gender)",
+       x = "BMI Group", y = "TSH (µIU/mL)", fill = "Gender") +
+  base_theme
+print(p_bmi_tsh)
+
+# ================== Correlation matrix with p-values ==================
+num_cols <- c("age","waist","height","bmi","triiodothyronine","thyroxine","thyroid_stimulating_hormone")
+num_cols <- intersect(num_cols, names(df))
+num_df <- df |> select(all_of(num_cols)) |> mutate(across(everything(), as.numeric))
+
+rc <- rcorr(as.matrix(num_df), type = "pearson")  # rc$r = correlations, rc$P = p-values
+
+p_corr <- ggcorrplot(rc$r,
+                     hc.order = TRUE,
+                     type = "lower",
+                     lab = TRUE,
+                     p.mat = rc$P,
+                     sig.level = 0.05,
+                     insig = "pch",
+                     title = "Correlation Matrix with p-values",
+                     show.legend = TRUE)
+print(p_corr)
+
+
+
+```

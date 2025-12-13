@@ -1,0 +1,119 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+# Install once (if needed)
+install.packages(c("readxl", "nnet", "caret", "dplyr", "rpart", "rpart.plot"))
+
+library(readxl)
+library(nnet)       # multinom()
+library(caret)      # createDataPartition, confusionMatrix
+library(dplyr)      # for %>%
+library(rpart)      # decision tree
+library(rpart.plot) # nice tree plots
+
+set.seed(123)  # for reproducibility
+
+# Read your Excel file (make sure working directory is correct)
+df <- read_excel("C:/Users/mouni/OneDrive - clarkson.edu/DATA MINING/project/dataset.xlsx")
+
+# Clean up column names (trim spaces like in 'Thyroxine ')
+names(df) <- trimws(names(df))
+names(df)
+
+```
+
+```{r}
+# Convert target and categorical predictor(s) to factor
+df$Gender <- factor(df$Gender)
+
+# Multinomial (unordered) target
+df$`TriiodothyronineRange` <- factor(df$`TriiodothyronineRange`)
+
+# Optional: check structure
+str(df)
+
+# 80/20 train-test split using the target
+set.seed(123)
+idx <- createDataPartition(df$`TriiodothyronineRange`, p = 0.8, list = FALSE)
+
+train <- df[idx, ]
+test  <- df[-idx, ]
+
+nrow(train); nrow(test)
+
+```
+
+```{r}
+# Formula using correct column names
+multi_formula <- `TriiodothyronineRange` ~ Gender + Age + Waist + Height + BMI +
+                 Triiodothyronine + Thyroxine + `ThyroidStimulatingHormone`
+
+# Fit multinomial logistic regression
+multinom_model <- multinom(multi_formula,
+                           data = train,
+                           trace = FALSE,
+                           maxit = 1000)   # increase iterations if needed
+
+summary(multinom_model)
+
+```
+
+```{r}
+# Coefficients and standard errors
+coefs <- summary(multinom_model)$coefficients
+ses   <- summary(multinom_model)$standard.errors
+
+# z-values and p-values
+z_vals <- coefs / ses
+p_vals <- 2 * (1 - pnorm(abs(z_vals)))
+
+coefs
+p_vals
+
+```
+
+```{r}
+exp(coefs)   # exponentiated coefficients = odds ratios
+
+
+```
+
+```{r}
+# Predict class on test data
+pred_multi <- predict(multinom_model, newdata = test, type = "class")
+
+# Confusion matrix
+confusionMatrix(pred_multi, test$`TriiodothyronineRange`)
+
+```
+
+```{r}
+# Use the same formula as above
+tree_formula <- multi_formula
+
+# Fit decision tree
+tree_model <- rpart(tree_formula,
+                    data = train,
+                    method = "class",
+                    control = rpart.control(cp = 0.01, minsplit = 20))
+
+# Print summary
+summary(tree_model)
+
+# Plot the tree
+rpart.plot(tree_model, type = 2, extra = 104, fallen.leaves = TRUE)
+
+```
+
+```{r}
+# Predict classes from the tree
+tree_pred <- predict(tree_model, newdata = test, type = "class")
+
+# Confusion matrix
+confusionMatrix(tree_pred, test$`TriiodothyronineRange`)
+
+```
+

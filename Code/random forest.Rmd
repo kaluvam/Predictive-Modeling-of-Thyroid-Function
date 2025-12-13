@@ -1,0 +1,191 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+ 
+
+```{r}
+## 0. Install (first time only) and load packages ---------------------------
+install.packages(c("readxl", "dplyr", "caret", "nnet", 
+                   "rpart", "rpart.plot", "randomForest"))
+
+library(readxl)
+library(dplyr)
+library(caret)
+library(nnet)          # multinom()
+library(rpart)         # decision tree
+library(rpart.plot)    # pretty tree plot
+library(randomForest)  # random forest
+
+set.seed(123)  # for reproducibility
+
+## 1. Read the data ---------------------------------------------------------
+# Option 1: if dataset.xlsx is in your working directory:
+df <- read_excel("dataset.xlsx")
+
+# Option 2: use full path (use / or double \\ in Windows)
+# df <- read_excel("C:/Users/mouni/OneDrive - clarkson.edu/DATA MINING/project/dataset.xlsx")
+
+str(df)
+colnames(df)
+# Expected columns:
+# "Gender" "Age" "Waist" "Height" "BMI" "Triiodothyronine" 
+# "Thyroxine " "Thyroid stimulating hormone" "Triiodothyronine Range"
+
+## 2. Clean column names (remove spaces / weird names) ----------------------
+df <- df %>%
+  rename(
+    TriiodothyronineRange      = `Triiodothyronine Range`,
+    Thyroxine                  = `Thyroxine `,
+    ThyroidStimulatingHormone  = `Thyroid stimulating hormone`
+  )
+
+# Target as factor for classification (multiclass)
+df$TriiodothyronineRange <- factor(df$TriiodothyronineRange)
+
+# Make sure Gender is factor too (if it's not already)
+df$Gender <- as.factor(df$Gender)
+
+# Remove rows with missing target
+df <- df %>% filter(!is.na(TriiodothyronineRange))
+
+## 3. Train–test split: 80% train, 20% test --------------------------------
+idx <- createDataPartition(df$TriiodothyronineRange, p = 0.8, list = FALSE)
+train <- df[idx, ]
+test  <- df[-idx, ]
+
+nrow(train); nrow(test)
+
+## 4. Define predictors and formula ----------------------------------------
+predictors <- c("Gender", "Age", "Waist", "Height", "BMI",
+                "Triiodothyronine", "Thyroxine", "ThyroidStimulatingHormone")
+
+form <- as.formula(
+  paste("TriiodothyronineRange ~", paste(predictors, collapse = " + "))
+)
+
+############################################################################
+## A) MULTINOMIAL LOGISTIC REGRESSION (multi nominal) ----------------------
+############################################################################
+
+multi_model <- multinom(form, data = train, trace = FALSE)
+summary(multi_model)
+
+# Predicted class on test data
+pred_multi <- predict(multi_model, newdata = test, type = "class")
+
+# Confusion matrix + accuracy etc.
+cm_multi <- confusionMatrix(pred_multi, test$TriiodothyronineRange)
+cm_multi
+
+############################################################################
+## B) DECISION TREE (rpart) ------------------------------------------------
+############################################################################
+
+tree_model <- rpart(form,
+                    data = train,
+                    method = "class",
+                    control = rpart.control(cp = 0.01, minsplit = 10))
+
+# See tree
+rpart.plot(tree_model, main = "Decision Tree for TriiodothyronineRange")
+
+# Predictions
+pred_tree <- predict(tree_model, newdata = test, type = "class")
+
+# Confusion matrix
+cm_tree <- confusionMatrix(pred_tree, test$TriiodothyronineRange)
+cm_tree
+
+############################################################################
+## C) RANDOM FOREST --------------------------------------------------------
+############################################################################
+
+rf_model <- randomForest(form,
+                         data = train,
+                         ntree = 500,
+                         mtry = 3,       # you can tune this
+                         importance = TRUE)
+
+rf_model  # basic summary
+
+# Predictions
+pred_rf <- predict(rf_model, newdata = test, type = "class")
+
+# Confusion matrix
+cm_rf <- confusionMatrix(pred_rf, test$TriiodothyronineRange)
+cm_rf
+
+# Variable importance plot
+varImpPlot(rf_model, main = "Random Forest Variable Importance")
+
+
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Assuming your dataset is df
+# And Gender is coded as Male/Female (or 1/2)
+# If 1/2, convert:
+df <- read_excel("C:/Users/mouni/OneDrive - clarkson.edu/DATA MINING/project/dataset.xlsx")
+df$Gender <- factor(df$Gender, levels = c(1,2), labels = c("Male","Female"))
+
+# Step 1: Calculate percentages
+percent_df <- df %>%
+  group_by(TriiodothyronineRange, Gender) %>%
+  summarise(count = n()) %>%
+  group_by(TriiodothyronineRange) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+# Step 2: Bar plot (Histogram style)
+ggplot(percent_df, aes(x = factor(TriiodothyronineRange),
+                       y = percentage,
+                       fill = Gender)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("Male" = "orange", "Female" = "blue")) +
+  labs(title = "Percentage Distribution by Triiodothyronine Range and Gender",
+       x = "Triiodothyronine Range",
+       y = "Percentage (%)") +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 14),
+    plot.title = element_text(size = 16, face = "bold")
+  )
+
+```
+```{r}
+library(dplyr)
+library(ggplot2)
+df <- read_excel("C:/Users/mouni/OneDrive - clarkson.edu/DATA MINING/project/dataset.xlsx")
+# Convert gender if needed
+df$Gender <- factor(df$Gender, levels = c(1,2), labels = c("Male","Female"))
+
+# Calculate percentages
+percent_df <- df %>%
+  group_by(TriiodothyronineRange, Gender) %>%
+  summarise(count = n()) %>%
+  group_by(TriiodothyronineRange) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+# Plot with your colors
+ggplot(percent_df, aes(x = factor(TriiodothyronineRange),
+                       y = percentage,
+                       fill = Gender)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c(
+    "Male" = "#E57373",      # your male color
+    "Female" = "#4DB6AC"     # your female color
+  )) +
+  labs(title = "Percentage by Triiodothyronine Range and Gender",
+       x = "Thyroid Range",
+       y = "Percentage (%)") +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 14),
+    plot.title = element_text(size = 16, face = "bold")
+  )
+
+```
+

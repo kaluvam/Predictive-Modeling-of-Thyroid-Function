@@ -1,0 +1,68 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+# Read your data (change the path to your file)
+library(readxl)
+df <- read_excel("C:/Users/mouni/OneDrive - clarkson.edu/DATA MINING/project/dataset.xlsx")
+
+# Make sure the thyroid range variable is a factor
+df$TriiodothyronineRange <- as.factor(df$TriiodothyronineRange)
+```
+
+```{r}
+kruskal.test(Age ~ TriiodothyronineRange, data = df)
+
+```
+
+```{r}
+# Identify numeric columns
+num_cols_logical <- sapply(df, is.numeric)
+
+# Do NOT test the grouping variable itself if it's numeric
+num_cols_logical["TriiodothyronineRange"] <- FALSE  # comment this out if it's not numeric
+
+numeric_vars <- names(df)[num_cols_logical]
+
+# Create an empty data frame to store results
+kw_results <- data.frame(
+  variable = character(),
+  statistic = numeric(),
+  p_value = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Loop over numeric variables and run Kruskal–Wallis test
+for (v in numeric_vars) {
+  formula_v <- as.formula(paste(v, "~ TriiodothyronineRange"))
+  
+  test_v <- kruskal.test(formula_v, data = df)
+  
+  kw_results <- rbind(
+    kw_results,
+    data.frame(
+      variable  = v,
+      statistic = as.numeric(test_v$statistic),
+      p_value   = test_v$p.value,
+      stringsAsFactors = FALSE
+    )
+  )
+}
+
+# Add a column indicating significance at α = 0.05 (your H0 / H1)
+kw_results$decision_0_05 <- ifelse(
+  kw_results$p_value < 0.05,
+  "Reject H0 (significant difference)",
+  "Fail to reject H0 (no significant difference)"
+)
+
+kw_results
+
+```
+
